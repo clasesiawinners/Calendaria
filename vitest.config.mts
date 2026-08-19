@@ -5,5 +5,6 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     fileParallelism: false,
+    exclude: ["**/node_modules/**", "**/.worktrees/**"],
   },
 });
