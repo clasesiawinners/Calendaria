@@ -7,6 +7,7 @@ import {
   updateActivitySyncStatus,
   softDeleteActivity,
   getActivityByExternalId,
+  upsertActivityByGoogleEventId,
 } from "./activities";
 
 const db = createTestDb();
@@ -109,5 +110,20 @@ describe("activities repository", () => {
   it("retorna null si no existe el external_id", async () => {
     const found = await getActivityByExternalId(db, "no-existe");
     expect(found).toBeNull();
+  });
+
+  it("upsertActivityByGoogleEventId crea si no existe y actualiza si ya existe", async () => {
+    const created = await upsertActivityByGoogleEventId(db, "google-evt-x", {
+      ...makeActivity({ source: "google_calendar", status: "externa", color: "plomo" }),
+      title: "Reunión externa",
+    });
+    expect(created.title).toBe("Reunión externa");
+
+    const updated = await upsertActivityByGoogleEventId(db, "google-evt-x", {
+      ...makeActivity({ source: "google_calendar", status: "externa", color: "plomo" }),
+      title: "Reunión externa (reprogramada)",
+    });
+    expect(updated.id).toBe(created.id);
+    expect(updated.title).toBe("Reunión externa (reprogramada)");
   });
 });

@@ -53,3 +53,30 @@ export async function getActivityByExternalId(db: Db, externalId: string): Promi
   const rows = await db.select().from(activities).where(eq(activities.externalId, externalId)).limit(1);
   return rows[0] ?? null;
 }
+
+export async function upsertActivityByGoogleEventId(
+  db: Db,
+  googleEventId: string,
+  data: Omit<NewActivity, "googleEventId">
+): Promise<Activity> {
+  const [existing] = await db
+    .select()
+    .from(activities)
+    .where(eq(activities.googleEventId, googleEventId))
+    .limit(1);
+
+  if (existing) {
+    const [updated] = await db
+      .update(activities)
+      .set({ ...data, googleEventId, updatedAt: new Date() })
+      .where(eq(activities.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(activities)
+    .values({ ...data, googleEventId })
+    .returning();
+  return created;
+}
