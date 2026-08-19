@@ -5,6 +5,7 @@ import { format, parse, startOfWeek, getDay } from "date-fns";
 import { es } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import type { CalendarEvent } from "@/lib/db/repositories/activities-view";
+import { retrySync } from "@/app/actions/retry-sync";
 
 const localizer = dateFnsLocalizer({
   format,
@@ -29,6 +30,8 @@ const LEGEND_ITEMS: { label: string; color: string }[] = [
 ];
 
 export function CalendarView({ events }: { events: CalendarEvent[] }) {
+  const errorEvents = events.filter((event) => event.syncStatus === "error");
+
   return (
     <div>
       <div className="mb-4 flex gap-4">
@@ -42,6 +45,28 @@ export function CalendarView({ events }: { events: CalendarEvent[] }) {
           </div>
         ))}
       </div>
+
+      {errorEvents.length > 0 && (
+        <div className="mb-4 rounded border border-red-300 bg-red-50 p-3">
+          <p className="mb-2 text-sm font-medium text-red-800">
+            Actividades con error de sincronización:
+          </p>
+          <ul className="space-y-2">
+            {errorEvents.map((event) => (
+              <li key={event.id} className="flex items-center justify-between text-sm">
+                <span>{event.title}</span>
+                <button
+                  onClick={() => retrySync(event.id)}
+                  className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
+                >
+                  Reintentar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div style={{ height: 700 }}>
         <Calendar
           localizer={localizer}
