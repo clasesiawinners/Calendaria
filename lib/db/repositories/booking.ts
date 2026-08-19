@@ -24,6 +24,7 @@ export async function getWeeklyAvailability(
     end: config?.workHoursEnd ?? "19:00",
   };
   const timezone = config?.timezone ?? "America/Santiago";
+  const notBefore = new Date();
 
   const days = getUpcomingDays(params.from, params.days);
 
@@ -39,6 +40,7 @@ export async function getWeeklyAvailability(
       timezone,
       existing: existing.map((a) => ({ start: a.startDatetime, end: a.endDatetime })),
       slotDurationMinutes: params.slotDurationMinutes,
+      notBefore,
     });
 
     results.push({ day, slots });

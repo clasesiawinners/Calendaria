@@ -21,4 +21,22 @@ describe("validateTimeRange", () => {
       expect(result.reason).toMatch(/posterior/i);
     }
   });
+
+  it("es inválido cuando start es una fecha inválida (Invalid Date)", () => {
+    const range = { start: new Date("garbage"), end: new Date("2026-08-20T11:00:00Z") };
+    const result = validateTimeRange(range);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.reason).toMatch(/no es válida/i);
+    }
+  });
+
+  it("es inválido cuando end es una fecha inválida (Invalid Date)", () => {
+    const range = { start: new Date("2026-08-20T10:00:00Z"), end: new Date("garbage") };
+    const result = validateTimeRange(range);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.reason).toMatch(/no es válida/i);
+    }
+  });
 });

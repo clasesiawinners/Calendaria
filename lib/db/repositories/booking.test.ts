@@ -51,6 +51,19 @@ describe("getWeeklyAvailability", () => {
     );
     expect(occupiedSlot).toBeUndefined();
   });
+
+  it("no incluye slots del día de hoy que ya pasaron", async () => {
+    const now = new Date();
+
+    const result = await getWeeklyAvailability(db, {
+      from: now,
+      days: 1,
+      slotDurationMinutes: 60,
+    });
+
+    const pastSlot = result[0].slots.find((slot) => slot.start.getTime() <= now.getTime());
+    expect(pastSlot).toBeUndefined();
+  });
 });
 
 describe("getActivityByBookingToken", () => {
