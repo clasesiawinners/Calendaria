@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/lib/db/client";
 import { createBooking } from "@/lib/actions/create-booking";
@@ -41,6 +42,8 @@ export async function submitBooking(
   );
 
   if (result.status === "created") {
+    revalidatePath("/reservar");
+    revalidatePath("/panel/calendario");
     redirect(`/reservar/confirmacion?token=${result.activity.bookingToken}`);
   }
 

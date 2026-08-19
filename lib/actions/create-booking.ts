@@ -3,6 +3,7 @@ import type { db as dbType } from "@/lib/db/client";
 import { getAppConfig } from "@/lib/db/repositories/app-config";
 import { createActivity, findConflicts, updateActivitySyncStatus } from "@/lib/db/repositories/activities";
 import { validateTimeRange } from "@/lib/scheduling/validate-range";
+import { isWithinWorkHours } from "@/lib/scheduling/availability";
 import { colorForStatus } from "@/lib/scheduling/color";
 import { decryptToken } from "@/lib/crypto/token-cipher";
 import { sendBookingConfirmationEmail } from "@/lib/email/resend-client";
@@ -39,7 +40,21 @@ export async function createBooking(
     return { status: "invalid", reason: rangeValidation.reason };
   }
 
+  if (input.start < new Date()) {
+    return { status: "invalid", reason: "No se puede reservar un horario en el pasado" };
+  }
+
   const config = await getAppConfig(db);
+  const workHours = {
+    start: config?.workHoursStart ?? "08:00",
+    end: config?.workHoursEnd ?? "19:00",
+  };
+  const timezone = config?.timezone ?? "America/Santiago";
+
+  if (!isWithinWorkHours({ start: input.start, end: input.end }, workHours, timezone)) {
+    return { status: "invalid", reason: "El horario elegido está fuera del horario de atención" };
+  }
+
   const conflicts = await findConflicts(db, { start: input.start, end: input.end });
   if (conflicts.length > 0) {
     return { status: "conflict", conflicts };

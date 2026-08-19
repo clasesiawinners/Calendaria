@@ -1,9 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { fromZonedTime } from "date-fns-tz";
 import { db } from "@/lib/db/client";
 import { rescheduleBooking, cancelBooking } from "@/lib/actions/manage-booking";
 import { createGoogleCalendarClient } from "@/lib/google-calendar/client";
+import { getAppConfig } from "@/lib/db/repositories/app-config";
 
 export interface ManageBookingState {
   status: "idle" | "conflict" | "invalid" | "not_found";
@@ -15,12 +18,16 @@ export async function submitReschedule(
   formData: FormData
 ): Promise<ManageBookingState> {
   const token = String(formData.get("token") ?? "");
-  const start = new Date(String(formData.get("start")));
-  const end = new Date(String(formData.get("end")));
+  const config = await getAppConfig(db);
+  const timezone = config?.timezone ?? "America/Santiago";
+  const start = fromZonedTime(String(formData.get("start")), timezone);
+  const end = fromZonedTime(String(formData.get("end")), timezone);
 
   const result = await rescheduleBooking(db, createGoogleCalendarClient, { token, start, end });
 
   if (result.status === "rescheduled") {
+    revalidatePath("/reservar");
+    revalidatePath("/panel/calendario");
     redirect(`/reservar/gestionar/${token}?updated=1`);
   }
   if (result.status === "conflict") {
@@ -43,5 +50,7 @@ export async function submitCancel(
     return { status: "not_found", message: "No se encontró la reserva." };
   }
 
+  revalidatePath("/reservar");
+  revalidatePath("/panel/calendario");
   redirect("/reservar/gestionar/cancelada");
 }

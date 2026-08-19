@@ -61,6 +61,32 @@ describe("cancelBooking", () => {
     const afterCancel = await cancelBooking(db, () => googleClient, TOKEN);
     expect(afterCancel.status).toBe("not_found");
   });
+
+  it("retorna cancelled aunque deleteEvent de Google lance una excepción (el soft-delete local ya se aplicó)", async () => {
+    await createActivity(db, {
+      source: "manual",
+      title: "Reserva",
+      activityType: "Otro",
+      status: "programada",
+      color: "azul",
+      startDatetime: new Date("2026-08-24T14:00:00Z"),
+      endDatetime: new Date("2026-08-24T15:00:00Z"),
+      createdBy: "public",
+      syncStatus: "synced",
+      googleEventId: "google-evt-1",
+      bookingToken: TOKEN,
+      bookerEmail: "ana@example.com",
+      bookerName: "Ana",
+    });
+
+    const googleClient = makeFakeGoogleClient({
+      deleteEvent: vi.fn().mockRejectedValue(new Error("Google API unavailable")),
+    });
+
+    const result = await cancelBooking(db, () => googleClient, TOKEN);
+    expect(result.status).toBe("cancelled");
+    expect(googleClient.deleteEvent).toHaveBeenCalledWith("google-evt-1");
+  });
 });
 
 describe("rescheduleBooking", () => {
@@ -96,6 +122,62 @@ describe("rescheduleBooking", () => {
       end: new Date("2026-08-24T16:00:00Z"),
     });
     expect(result.status).toBe("invalid");
+  });
+
+  it("rechaza si el nuevo start está en el pasado", async () => {
+    await createActivity(db, {
+      source: "manual",
+      title: "Reserva",
+      activityType: "Otro",
+      status: "programada",
+      color: "azul",
+      startDatetime: new Date("2026-08-24T14:00:00Z"),
+      endDatetime: new Date("2026-08-24T15:00:00Z"),
+      createdBy: "public",
+      syncStatus: "synced",
+      googleEventId: "google-evt-1",
+      bookingToken: TOKEN,
+      bookerEmail: "ana@example.com",
+      bookerName: "Ana",
+    });
+
+    const result = await rescheduleBooking(db, () => makeFakeGoogleClient(), {
+      token: TOKEN,
+      start: new Date("2020-01-01T14:00:00Z"),
+      end: new Date("2020-01-01T15:00:00Z"),
+    });
+    expect(result.status).toBe("invalid");
+    if (result.status === "invalid") {
+      expect(result.reason).toMatch(/pasado/i);
+    }
+  });
+
+  it("rechaza si el nuevo horario cae fuera del horario de atención laboral", async () => {
+    await createActivity(db, {
+      source: "manual",
+      title: "Reserva",
+      activityType: "Otro",
+      status: "programada",
+      color: "azul",
+      startDatetime: new Date("2026-08-24T14:00:00Z"),
+      endDatetime: new Date("2026-08-24T15:00:00Z"),
+      createdBy: "public",
+      syncStatus: "synced",
+      googleEventId: "google-evt-1",
+      bookingToken: TOKEN,
+      bookerEmail: "ana@example.com",
+      bookerName: "Ana",
+    });
+
+    const result = await rescheduleBooking(db, () => makeFakeGoogleClient(), {
+      token: TOKEN,
+      start: new Date("2026-08-25T03:00:00Z"),
+      end: new Date("2026-08-25T04:00:00Z"),
+    });
+    expect(result.status).toBe("invalid");
+    if (result.status === "invalid") {
+      expect(result.reason).toMatch(/horario de atención/i);
+    }
   });
 
   it("bloquea si el nuevo horario se solapa con otra actividad", async () => {
@@ -154,18 +236,82 @@ describe("rescheduleBooking", () => {
     const googleClient = makeFakeGoogleClient();
     const result = await rescheduleBooking(db, () => googleClient, {
       token: TOKEN,
-      start: new Date("2026-08-25T10:00:00Z"),
-      end: new Date("2026-08-25T11:00:00Z"),
+      start: new Date("2026-08-25T14:00:00Z"),
+      end: new Date("2026-08-25T15:00:00Z"),
     });
 
     expect(result.status).toBe("rescheduled");
     if (result.status === "rescheduled") {
-      expect(result.activity.startDatetime.toISOString()).toBe("2026-08-25T10:00:00.000Z");
+      expect(result.activity.startDatetime.toISOString()).toBe("2026-08-25T14:00:00.000Z");
       expect(result.activity.syncStatus).toBe("synced");
     }
     expect(googleClient.updateEvent).toHaveBeenCalledWith(
       "google-evt-1",
-      expect.objectContaining({ start: new Date("2026-08-25T10:00:00Z") })
+      expect.objectContaining({ start: new Date("2026-08-25T14:00:00Z") })
     );
+  });
+
+  it("queda pending (no error) cuando la actividad nunca se sincronizó a Google pero la config está completa, preservando el mensaje de error original", async () => {
+    await createActivity(db, {
+      source: "manual",
+      title: "Reserva",
+      activityType: "Otro",
+      status: "programada",
+      color: "azul",
+      startDatetime: new Date("2026-08-24T14:00:00Z"),
+      endDatetime: new Date("2026-08-24T15:00:00Z"),
+      createdBy: "public",
+      syncStatus: "error",
+      syncErrorMessage: "Google API unavailable (fallo original)",
+      googleEventId: null,
+      bookingToken: TOKEN,
+      bookerEmail: "ana@example.com",
+      bookerName: "Ana",
+    });
+
+    const googleClient = makeFakeGoogleClient();
+    const result = await rescheduleBooking(db, () => googleClient, {
+      token: TOKEN,
+      start: new Date("2026-08-25T14:00:00Z"),
+      end: new Date("2026-08-25T15:00:00Z"),
+    });
+
+    expect(result.status).toBe("rescheduled");
+    if (result.status === "rescheduled") {
+      expect(result.activity.syncStatus).toBe("pending");
+      expect(result.activity.syncErrorMessage).toBe("Google API unavailable (fallo original)");
+    }
+    expect(googleClient.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it("queda pending con syncErrorMessage null cuando la actividad nunca se sincronizó y no había error previo", async () => {
+    await createActivity(db, {
+      source: "manual",
+      title: "Reserva",
+      activityType: "Otro",
+      status: "programada",
+      color: "azul",
+      startDatetime: new Date("2026-08-24T14:00:00Z"),
+      endDatetime: new Date("2026-08-24T15:00:00Z"),
+      createdBy: "public",
+      syncStatus: "pending",
+      googleEventId: null,
+      bookingToken: TOKEN,
+      bookerEmail: "ana@example.com",
+      bookerName: "Ana",
+    });
+
+    const googleClient = makeFakeGoogleClient();
+    const result = await rescheduleBooking(db, () => googleClient, {
+      token: TOKEN,
+      start: new Date("2026-08-25T14:00:00Z"),
+      end: new Date("2026-08-25T15:00:00Z"),
+    });
+
+    expect(result.status).toBe("rescheduled");
+    if (result.status === "rescheduled") {
+      expect(result.activity.syncStatus).toBe("pending");
+      expect(result.activity.syncErrorMessage).toBeNull();
+    }
   });
 });

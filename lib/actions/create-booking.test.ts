@@ -121,6 +121,37 @@ describe("createBooking", () => {
     expect(result.status).toBe("created");
   });
 
+  it("rechaza un horario en el pasado", async () => {
+    const result = await createBooking(db, () => makeFakeGoogleClient(), makeFakeResend(), buildManageUrl, {
+      title: "Cancha 1",
+      activityType: "Reserva",
+      start: new Date("2020-01-01T14:00:00Z"),
+      end: new Date("2020-01-01T15:00:00Z"),
+      bookerName: "Ana",
+      bookerEmail: "ana@example.com",
+    });
+    expect(result.status).toBe("invalid");
+    if (result.status === "invalid") {
+      expect(result.reason).toMatch(/pasado/i);
+    }
+  });
+
+  it("rechaza un horario fuera del horario de atención laboral", async () => {
+    // Horario laboral configurado 08:00-19:00 America/Santiago; 03:00 UTC cae de madrugada, fuera de horario.
+    const result = await createBooking(db, () => makeFakeGoogleClient(), makeFakeResend(), buildManageUrl, {
+      title: "Cancha 1",
+      activityType: "Reserva",
+      start: new Date("2026-08-24T03:00:00Z"),
+      end: new Date("2026-08-24T04:00:00Z"),
+      bookerName: "Ana",
+      bookerEmail: "ana@example.com",
+    });
+    expect(result.status).toBe("invalid");
+    if (result.status === "invalid") {
+      expect(result.reason).toMatch(/horario de atención/i);
+    }
+  });
+
   it("marca sync_status=error si falla Google, pero conserva la reserva y el booking_token", async () => {
     const googleClient = makeFakeGoogleClient({
       insertEvent: vi.fn().mockRejectedValue(new Error("Google API unavailable")),
