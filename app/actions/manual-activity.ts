@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { createManualActivity } from "@/lib/actions/create-manual-activity";
 import { createGoogleCalendarClient } from "@/lib/google-calendar/client";
@@ -8,12 +9,18 @@ import { createGoogleCalendarClient } from "@/lib/google-calendar/client";
 export interface SubmitManualActivityState {
   status: "idle" | "created" | "conflict" | "invalid";
   message?: string;
+  warning?: string;
 }
 
 export async function submitManualActivity(
   _prevState: SubmitManualActivityState,
   formData: FormData
 ): Promise<SubmitManualActivityState> {
+  const session = await auth();
+  if (!session) {
+    throw new Error("No autorizado");
+  }
+
   const title = String(formData.get("title") ?? "");
   const activityType = String(formData.get("activityType") ?? "");
   const start = new Date(String(formData.get("start")));
@@ -34,7 +41,7 @@ export async function submitManualActivity(
 
   if (result.status === "created") {
     revalidatePath("/panel/calendario");
-    return { status: "created" };
+    return result.warning ? { status: "created", warning: result.warning } : { status: "created" };
   }
 
   if (result.status === "conflict") {

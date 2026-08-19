@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
+import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { createBitacoraActivity } from "@/lib/actions/create-bitacora-activity";
 
@@ -13,6 +14,11 @@ export async function submitBitacoraActivity(
   _prevState: SubmitBitacoraState,
   formData: FormData
 ): Promise<SubmitBitacoraState> {
+  const session = await auth();
+  if (!session) {
+    throw new Error("No autorizado");
+  }
+
   const title = String(formData.get("title") ?? "");
   const activityType = String(formData.get("activityType") ?? "");
   const start = new Date(String(formData.get("start")));

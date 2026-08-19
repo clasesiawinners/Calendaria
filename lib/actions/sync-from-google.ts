@@ -32,7 +32,7 @@ export async function syncFromGoogle(
 
   let listResult: { events: Awaited<ReturnType<GoogleCalendarClient["listEvents"]>>["events"]; nextSyncToken: string };
   try {
-    listResult = await googleClient.listEvents(config.googleSyncToken ?? undefined);
+    listResult = await googleClient.listEvents(config.googleSyncToken || undefined);
   } catch (error) {
     const is410 = (error as { code?: number })?.code === 410;
     if (!is410) throw error;
@@ -60,6 +60,11 @@ export async function syncFromGoogle(
     }
 
     const [existingBefore] = await db.select().from(activities).where(eq(activities.googleEventId, event.id)).limit(1);
+
+    if (existingBefore && existingBefore.source !== "google_calendar") {
+      continue;
+    }
+
     const status = "externa" as const;
 
     await upsertActivityByGoogleEventId(db, event.id, {
@@ -83,7 +88,9 @@ export async function syncFromGoogle(
     }
   }
 
-  await upsertAppConfig(db, { googleSyncToken: nextSyncToken });
+  if (nextSyncToken) {
+    await upsertAppConfig(db, { googleSyncToken: nextSyncToken });
+  }
 
   return { created, updated, deleted };
 }

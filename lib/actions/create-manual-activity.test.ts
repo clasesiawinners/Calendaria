@@ -98,6 +98,46 @@ describe("createManualActivity", () => {
     expect(result.status).toBe("created");
   });
 
+  it("advierte pero permite guardar cuando hay conflicto y la política es 'warn'", async () => {
+    const googleClient = makeFakeGoogleClient();
+    await upsertAppConfig(db, { conflictPolicy: "warn" });
+
+    await createManualActivity(db, () => googleClient, {
+      title: "Actividad existente",
+      activityType: "Otro",
+      start: new Date("2026-08-20T15:00:00Z"),
+      end: new Date("2026-08-20T17:00:00Z"),
+    });
+
+    const result = await createManualActivity(db, () => googleClient, {
+      title: "Actividad conflictiva con warn",
+      activityType: "Otro",
+      start: new Date("2026-08-20T16:00:00Z"),
+      end: new Date("2026-08-20T18:00:00Z"),
+    });
+
+    expect(result.status).toBe("created");
+    if (result.status === "created") {
+      expect(result.warning).toBeTruthy();
+      expect(result.warning).toContain("superpone");
+    }
+  });
+
+  it("no incluye warning cuando no hay conflicto (caso feliz)", async () => {
+    const googleClient = makeFakeGoogleClient();
+    const result = await createManualActivity(db, () => googleClient, {
+      title: "Actividad sin conflicto",
+      activityType: "Otro",
+      start: new Date("2026-08-20T15:00:00Z"),
+      end: new Date("2026-08-20T17:00:00Z"),
+    });
+
+    expect(result.status).toBe("created");
+    if (result.status === "created") {
+      expect(result.warning).toBeUndefined();
+    }
+  });
+
   it("marca sync_status=error cuando falla la llamada a Google, sin perder la actividad", async () => {
     const googleClient = makeFakeGoogleClient({
       insertEvent: vi.fn().mockRejectedValue(new Error("Google API unavailable")),

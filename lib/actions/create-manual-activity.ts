@@ -21,7 +21,7 @@ export interface CreateManualActivityInput {
 }
 
 export type CreateManualActivityResult =
-  | { status: "created"; activity: Activity }
+  | { status: "created"; activity: Activity; warning?: string }
   | { status: "conflict"; conflicts: Activity[] }
   | { status: "invalid"; reason: string };
 
@@ -38,10 +38,14 @@ export async function createManualActivity(
   const config = await getAppConfig(db);
   const conflicts = await findConflicts(db, { start: input.start, end: input.end });
 
+  let warning: string | undefined;
   if (conflicts.length > 0) {
     const policy = config?.conflictPolicy ?? "block";
     if (policy === "block" && !input.confirmDespiteConflict) {
       return { status: "conflict", conflicts };
+    }
+    if (policy === "warn") {
+      warning = "El horario elegido se superpone con otra actividad.";
     }
   }
 
@@ -65,7 +69,7 @@ export async function createManualActivity(
       syncStatus: "error",
       syncErrorMessage: "No hay Calendar ID o token de Google configurado",
     });
-    return { status: "created", activity: updated };
+    return { status: "created", activity: updated, warning };
   }
 
   try {
@@ -86,13 +90,13 @@ export async function createManualActivity(
       googleEventId,
       remindersConfigured: true,
     });
-    return { status: "created", activity: updated };
+    return { status: "created", activity: updated, warning };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido al sincronizar con Google";
     const updated = await updateActivitySyncStatus(db, activity.id, {
       syncStatus: "error",
       syncErrorMessage: message,
     });
-    return { status: "created", activity: updated };
+    return { status: "created", activity: updated, warning };
   }
 }

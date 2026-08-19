@@ -46,6 +46,9 @@ export function NewActivityModal() {
               {state.status === "invalid" && (
                 <div className="rounded bg-red-100 p-2 text-sm text-red-800">{state.message}</div>
               )}
+              {state.status === "created" && state.warning && (
+                <div className="rounded bg-orange-100 p-2 text-sm text-orange-800">{state.warning}</div>
+              )}
 
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 text-sm">

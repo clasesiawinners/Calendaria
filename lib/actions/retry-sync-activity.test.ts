@@ -45,4 +45,38 @@ describe("retrySyncActivity", () => {
     expect(updated.syncStatus).toBe("synced");
     expect(updated.googleEventId).toBe("google-evt-retry");
   });
+
+  it("actualiza el evento existente en vez de crear uno nuevo cuando la actividad ya tiene googleEventId", async () => {
+    const activity = await createActivity(db, {
+      source: "manual",
+      title: "Actividad con evento previo",
+      activityType: "Otro",
+      status: "programada",
+      color: "azul",
+      startDatetime: new Date("2026-08-22T10:00:00Z"),
+      endDatetime: new Date("2026-08-22T11:00:00Z"),
+      createdBy: "admin",
+      syncStatus: "error",
+      syncErrorMessage: "fallo previo",
+      googleEventId: "google-evt-existing",
+    });
+
+    const googleClient: GoogleCalendarClient = {
+      insertEvent: vi.fn().mockResolvedValue({ googleEventId: "google-evt-should-not-be-used" }),
+      updateEvent: vi.fn().mockResolvedValue(undefined),
+      deleteEvent: vi.fn(),
+      listEvents: vi.fn(),
+    };
+
+    const updated = await retrySyncActivity(db, () => googleClient, activity);
+
+    expect(googleClient.updateEvent).toHaveBeenCalledOnce();
+    expect(googleClient.updateEvent).toHaveBeenCalledWith(
+      "google-evt-existing",
+      expect.objectContaining({ title: activity.title })
+    );
+    expect(googleClient.insertEvent).not.toHaveBeenCalled();
+    expect(updated.syncStatus).toBe("synced");
+    expect(updated.googleEventId).toBe("google-evt-existing");
+  });
 });

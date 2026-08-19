@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { createTestDb, truncateAll } from "@/lib/db/test-client";
 import { upsertAppConfig, getAppConfig } from "@/lib/db/repositories/app-config";
+import { createActivity } from "@/lib/db/repositories/activities";
+import { activities } from "@/lib/db/schema";
 import { encryptToken } from "@/lib/crypto/token-cipher";
 import { syncFromGoogle } from "./sync-from-google";
 import type { GoogleCalendarClient, GoogleCalendarEvent } from "@/lib/google-calendar/client";
@@ -97,5 +100,44 @@ describe("syncFromGoogle", () => {
     expect(result).toEqual({ created: 0, updated: 0, deleted: 0 });
     const config = await getAppConfig(db);
     expect(config?.googleSyncToken).toBe("fresh-token");
+  });
+
+  it("no sobrescribe una actividad manual ya sincronizada a Google (spec §5.4.2)", async () => {
+    await createActivity(db, {
+      source: "manual",
+      title: "Actividad manual",
+      activityType: "Partido",
+      status: "programada",
+      color: "azul",
+      startDatetime: new Date("2026-08-27T10:00:00Z"),
+      endDatetime: new Date("2026-08-27T11:00:00Z"),
+      createdBy: "admin",
+      syncStatus: "synced",
+      googleEventId: "google-evt-manual-1",
+    });
+
+    const events: GoogleCalendarEvent[] = [
+      {
+        id: "google-evt-manual-1",
+        status: "confirmed",
+        summary: "Actividad manual (editada en Google)",
+        start: { dateTime: "2026-08-27T10:00:00Z" },
+        end: { dateTime: "2026-08-27T11:00:00Z" },
+      },
+    ];
+    const googleClient = makeFakeGoogleClient(events);
+
+    const result = await syncFromGoogle(db, () => googleClient);
+
+    expect(result.created).toBe(0);
+    expect(result.updated).toBe(0);
+
+    const [manualActivity] = await db
+      .select()
+      .from(activities)
+      .where(eq(activities.googleEventId, "google-evt-manual-1"))
+      .limit(1);
+    expect(manualActivity?.source).toBe("manual");
+    expect(manualActivity?.color).toBe("azul");
   });
 });

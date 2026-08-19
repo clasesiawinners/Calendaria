@@ -27,14 +27,24 @@ export async function retrySyncActivity(
       calendarId: config.googleCalendarId,
       refreshToken: decryptToken(config.googleRefreshToken),
     });
-    const { googleEventId } = await googleClient.insertEvent({
+    const eventInput = {
       title: activity.title,
       description: activity.description ?? undefined,
       location: activity.location ?? undefined,
       start: activity.startDatetime,
       end: activity.endDatetime,
       timezone: config.timezone,
-    });
+    };
+
+    let googleEventId: string;
+    if (activity.googleEventId) {
+      await googleClient.updateEvent(activity.googleEventId, eventInput);
+      googleEventId = activity.googleEventId;
+    } else {
+      const result = await googleClient.insertEvent(eventInput);
+      googleEventId = result.googleEventId;
+    }
+
     return updateActivitySyncStatus(db, activity.id, {
       syncStatus: "synced",
       googleEventId,
