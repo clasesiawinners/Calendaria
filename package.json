@@ -14,18 +14,21 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "googleapis": "^175.0.0",
     "next": "16.3.1",
     "next-auth": "5.0.0-beta.32",
     "postgres": "^3.4.9",
     "react": "19.2.8",
+    "react-big-calendar": "^1.20.0",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
+    "@types/react-big-calendar": "^1.16.3",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
