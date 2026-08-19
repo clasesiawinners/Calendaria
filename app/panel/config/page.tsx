@@ -1,9 +1,11 @@
+import { connection } from "next/server";
 import { db } from "@/lib/db/client";
 import { getAppConfig } from "@/lib/db/repositories/app-config";
 import { submitAppConfig } from "@/app/actions/app-config";
 import { signIn } from "@/auth";
 
 export default async function ConfigPage() {
+  await connection();
   const config = await getAppConfig(db);
   const isConnected = Boolean(config?.googleRefreshToken);
 
