@@ -1,7 +1,6 @@
 import type { db as dbType } from "@/lib/db/client";
 import { getAppConfig, upsertAppConfig } from "@/lib/db/repositories/app-config";
 import { upsertActivityByGoogleEventId, softDeleteActivity } from "@/lib/db/repositories/activities";
-import { db as dbSchemaHelper } from "@/lib/db/client";
 import { activities } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { decryptToken } from "@/lib/crypto/token-cipher";
