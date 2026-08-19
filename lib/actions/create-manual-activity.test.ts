@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createTestDb, truncateAll } from "../db/test-client";
-import { upsertAppConfig } from "../db/repositories/app-config";
-import { encryptToken } from "../crypto/token-cipher";
+import { createTestDb, truncateAll } from "@/lib/db/test-client";
+import { upsertAppConfig } from "@/lib/db/repositories/app-config";
+import { encryptToken } from "@/lib/crypto/token-cipher";
 import { createManualActivity } from "./create-manual-activity";
-import type { GoogleCalendarClient } from "../google-calendar/client";
+import type { GoogleCalendarClient } from "@/lib/google-calendar/client";
 
 const db = createTestDb();
 

@@ -1,11 +1,11 @@
-import type { db as dbType } from "../db/client";
-import { getAppConfig } from "../db/repositories/app-config";
-import { createActivity, findConflicts, updateActivitySyncStatus } from "../db/repositories/activities";
-import { validateTimeRange } from "../scheduling/validate-range";
-import { colorForStatus } from "../scheduling/color";
-import { decryptToken } from "../crypto/token-cipher";
-import type { GoogleCalendarClient } from "../google-calendar/client";
-import type { Activity } from "../db/schema";
+import type { db as dbType } from "@/lib/db/client";
+import { getAppConfig } from "@/lib/db/repositories/app-config";
+import { createActivity, findConflicts, updateActivitySyncStatus } from "@/lib/db/repositories/activities";
+import { validateTimeRange } from "@/lib/scheduling/validate-range";
+import { colorForStatus } from "@/lib/scheduling/color";
+import { decryptToken } from "@/lib/crypto/token-cipher";
+import type { GoogleCalendarClient } from "@/lib/google-calendar/client";
+import type { Activity } from "@/lib/db/schema";
 
 type Db = typeof dbType;
 type GoogleClientFactory = (config: { calendarId: string; refreshToken: string }) => GoogleCalendarClient;
