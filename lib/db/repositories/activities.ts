@@ -45,6 +45,19 @@ export async function updateActivitySyncStatus(
   return updated;
 }
 
+export async function updateActivitySchedule(
+  db: Db,
+  id: string,
+  patch: { startDatetime: Date; endDatetime: Date; syncStatus: "synced" | "pending" | "error"; syncErrorMessage?: string | null }
+): Promise<Activity> {
+  const [updated] = await db
+    .update(activities)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(activities.id, id))
+    .returning();
+  return updated;
+}
+
 export async function softDeleteActivity(db: Db, id: string): Promise<void> {
   await db.update(activities).set({ deletedAt: new Date() }).where(eq(activities.id, id));
 }
