@@ -2,6 +2,7 @@ import { db } from "@/lib/db/client";
 import { listActivitiesInRange } from "@/lib/db/repositories/activities";
 import { toCalendarEvents } from "@/lib/db/repositories/activities-view";
 import { CalendarView } from "./calendar-view";
+import { NewActivityModal } from "./new-activity-modal";
 
 export default async function CalendarioPage() {
   const now = new Date();
@@ -13,7 +14,10 @@ export default async function CalendarioPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Calendario</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Calendario</h1>
+        <NewActivityModal />
+      </div>
       <CalendarView events={events} />
     </div>
   );
