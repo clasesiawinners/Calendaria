@@ -8,9 +8,9 @@ const listMock = vi.fn();
 vi.mock("googleapis", () => ({
   google: {
     auth: {
-      OAuth2: vi.fn().mockImplementation(() => ({
-        setCredentials: vi.fn(),
-      })),
+      OAuth2: vi.fn(function () {
+        return { setCredentials: vi.fn() };
+      }),
     },
     calendar: vi.fn().mockImplementation(() => ({
       events: {

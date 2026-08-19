@@ -46,27 +46,11 @@ function toEventRequestBody(input: EventInput) {
   };
 }
 
-// Vitest 4 mockea clases con `vi.fn().mockImplementation(() => ({...}))`, que no es
-// invocable con `new` (no tiene [[Construct]]). En producción, `google.auth.OAuth2` es
-// una clase ES6 real que sí requiere `new`. Este helper prueba `new` primero (camino real)
-// y cae a invocación directa si el target no es constructible (mocks de test).
-function construct<T>(Ctor: abstract new (...args: never[]) => T, ...args: unknown[]): T {
-  try {
-    return new (Ctor as new (...args: unknown[]) => T)(...args);
-  } catch (error) {
-    if (error instanceof TypeError) {
-      return (Ctor as unknown as (...args: unknown[]) => T)(...args);
-    }
-    throw error;
-  }
-}
-
 export function createGoogleCalendarClient(config: {
   calendarId: string;
   refreshToken: string;
 }): GoogleCalendarClient {
-  const oauth2Client = construct<InstanceType<typeof google.auth.OAuth2>>(
-    google.auth.OAuth2,
+  const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET
   );
